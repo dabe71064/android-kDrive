@@ -28,6 +28,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toFile
 import androidx.lifecycle.LiveData
 import androidx.work.*
+import androidx.work.multiprocess.RemoteCoroutineWorker
 import com.infomaniak.drive.R
 import com.infomaniak.drive.data.api.UploadTask
 import com.infomaniak.drive.data.models.AppSettings
@@ -52,7 +53,7 @@ import io.sentry.SentryLevel
 import kotlinx.coroutines.*
 import java.util.Date
 
-class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
+class UploadWorker(appContext: Context, params: WorkerParameters) : RemoteCoroutineWorker(appContext, params) {
     private lateinit var contentResolver: ContentResolver
 
     private val failedNames = mutableListOf<String>()
@@ -65,7 +66,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
     var uploadedCount = 0
     private var pendingCount = 0
 
-    override suspend fun doWork(): Result {
+    override suspend fun doRemoteWork(): Result {
 
         SentryLog.d(TAG, "UploadWorker starts job!")
         contentResolver = applicationContext.contentResolver
@@ -78,6 +79,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
             var result: Result
             var retryError = 0
             var lastUploadFileName = ""
+            setForegroundAsync(getForegroundInfo())
 
             do {
                 // Check if we have the required permissions before continuing
@@ -116,7 +118,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         }
     }
 
-    override suspend fun getForegroundInfo(): ForegroundInfo {
+    suspend fun getForegroundInfo(): ForegroundInfo {
         val pendingCount = if (this.pendingCount > 0) this.pendingCount else UploadFile.getAllPendingUploadsCount()
         val currentUploadNotification = UploadNotifications.getCurrentUploadNotification(applicationContext, pendingCount)
         return ForegroundInfo(NotificationUtils.UPLOAD_SERVICE_ID, currentUploadNotification.build())

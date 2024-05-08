@@ -25,6 +25,9 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.fragment.app.FragmentActivity
 import androidx.work.*
+import androidx.work.multiprocess.RemoteListenableWorker.ARGUMENT_CLASS_NAME
+import androidx.work.multiprocess.RemoteListenableWorker.ARGUMENT_PACKAGE_NAME
+import androidx.work.multiprocess.RemoteWorkerService
 import com.infomaniak.drive.data.models.MediaFolder
 import com.infomaniak.drive.data.models.SyncSettings
 import com.infomaniak.drive.data.models.UploadFile
@@ -86,10 +89,17 @@ object SyncUtils {
 
     fun Context.syncImmediately(data: Data = Data.EMPTY, force: Boolean = false) {
         if (!isSyncActive() || force) {
+
+            val workData = Data.Builder().apply {
+                putString(ARGUMENT_PACKAGE_NAME, packageName)
+                putString(ARGUMENT_CLASS_NAME, RemoteWorkerService::class.java.name)
+                putAll(data)
+            }.build()
+
             val request = OneTimeWorkRequestBuilder<UploadWorker>()
                 .setConstraints(UploadWorker.workConstraints())
                 .setExpeditedIfAvailable()
-                .setInputData(data)
+                .setInputData(workData)
                 .build()
             WorkManager.getInstance(this).enqueueUniqueWork(UploadWorker.TAG, ExistingWorkPolicy.REPLACE, request)
         }
