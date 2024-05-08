@@ -131,6 +131,7 @@ dependencies {
 
     def work_version = '2.9.0'
     implementation "androidx.work:work-runtime-ktx:$work_version"
+    implementation "androidx.work:work-multiprocess:$work_version"
     androidTestImplementation "androidx.work:work-testing:$work_version"
 
     implementation 'androidx.concurrent:concurrent-futures-ktx:1.1.0'
