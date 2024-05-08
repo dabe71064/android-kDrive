@@ -29,6 +29,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.work.Configuration
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import com.facebook.stetho.Stetho
@@ -68,7 +69,7 @@ import kotlinx.coroutines.runBlocking
 import org.matomo.sdk.Tracker
 import java.util.UUID
 
-class MainApplication : Application(), ImageLoaderFactory, DefaultLifecycleObserver {
+class MainApplication : Application(), ImageLoaderFactory, DefaultLifecycleObserver, Configuration.Provider {
 
     val matomoTracker: Tracker by lazy { buildTracker(shouldOptOut = true) }
     var geniusScanIsReady = false
@@ -182,4 +183,10 @@ class MainApplication : Application(), ImageLoaderFactory, DefaultLifecycleObser
             return AccountUtils.currentUser!!.apiToken
         }
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setDefaultProcessName(packageName)
+            .setMinimumLoggingLevel(android.util.Log.DEBUG)
+            .build()
 }
