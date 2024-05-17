@@ -74,12 +74,13 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : RemoteCorout
         // Checks if the maximum number of retry allowed is reached
         if (runAttemptCount >= MAX_RETRY_COUNT) return Result.failure()
 
+        // setForegroundAsync(getForegroundInfo()) // TODO: Foreground service not supported
+
         return runUploadCatching {
             var syncNewPendingUploads = false
             var result: Result
             var retryError = 0
             var lastUploadFileName = ""
-            setForegroundAsync(getForegroundInfo())
 
             do {
                 // Check if we have the required permissions before continuing
@@ -118,7 +119,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : RemoteCorout
         }
     }
 
-    suspend fun getForegroundInfo(): ForegroundInfo {
+    private fun getForegroundInfo(): ForegroundInfo {
         val pendingCount = if (this.pendingCount > 0) this.pendingCount else UploadFile.getAllPendingUploadsCount()
         val currentUploadNotification = UploadNotifications.getCurrentUploadNotification(applicationContext, pendingCount)
         return ForegroundInfo(NotificationUtils.UPLOAD_SERVICE_ID, currentUploadNotification.build())
