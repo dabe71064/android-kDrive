@@ -30,7 +30,7 @@ import androidx.work.WorkerParameters
 import com.infomaniak.drive.data.api.UploadTask
 import com.infomaniak.drive.utils.DownloadOfflineFileManager
 import com.infomaniak.drive.utils.RemoteFileException
-import com.infomaniak.drive.utils.getAvailableStorageInBytes
+import com.infomaniak.drive.utils.isLowStorage
 import com.infomaniak.lib.core.utils.SentryLog
 import io.sentry.Sentry
 import kotlinx.coroutines.CancellationException
@@ -52,9 +52,7 @@ abstract class BaseDownloadWorker(context: Context, workerParams: WorkerParamete
     override suspend fun doWork(): Result {
         return runCatching {
             SentryLog.i(workerTag(), "Work started")
-            val memoryLeftAfterDownload = (getAvailableStorageInBytes() - getSizeOfDownload()) / BYTES_TO_MB
-            val hasSpaceLeftAfterDownload = memoryLeftAfterDownload > MIN_SPACE_LEFT_AFTER_DOWNLOAD_MB
-            if (hasSpaceLeftAfterDownload) {
+            if (isLowStorage(getSizeOfDownload())) {
                 downloadAction()
             } else {
                 SentryLog.i(
@@ -131,8 +129,5 @@ abstract class BaseDownloadWorker(context: Context, workerParams: WorkerParamete
         const val FILE_ID = "file_id"
         const val PROGRESS = "progress"
         const val USER_ID = "user_id"
-
-        private const val MIN_SPACE_LEFT_AFTER_DOWNLOAD_MB = 500
-        private const val BYTES_TO_MB = 1_000_000
     }
 }

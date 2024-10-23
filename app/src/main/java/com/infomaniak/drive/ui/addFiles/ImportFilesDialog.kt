@@ -30,19 +30,14 @@ import androidx.lifecycle.withResumed
 import androidx.navigation.fragment.navArgs
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.infomaniak.drive.R
-import com.infomaniak.drive.data.api.UploadTask
 import com.infomaniak.drive.data.models.UploadFile
 import com.infomaniak.drive.databinding.DialogImportFilesBinding
 import com.infomaniak.drive.ui.MainViewModel
-import com.infomaniak.drive.utils.AccountUtils
-import com.infomaniak.drive.utils.IOFile
+import com.infomaniak.drive.utils.*
 import com.infomaniak.drive.utils.SyncUtils.getFileDates
 import com.infomaniak.drive.utils.SyncUtils.syncImmediately
 import com.infomaniak.drive.utils.SyncUtils.uploadFolder
-import com.infomaniak.drive.utils.getAvailableMemory
-import com.infomaniak.drive.utils.showSnackbar
-import com.infomaniak.lib.core.utils.SentryLog
-import com.infomaniak.lib.core.utils.getFileName
+import com.infomaniak.lib.core.utils.*
 import io.sentry.Sentry
 import kotlinx.coroutines.*
 import java.util.Date
@@ -58,6 +53,7 @@ class ImportFilesDialog : DialogFragment() {
     private var successCount = 0
 
     private var isMemoryError: Boolean = false
+    private var isStorageError: Boolean = false
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val countMessage = requireContext().resources.getQuantityString(R.plurals.preparingToUpload, importCount, importCount)
@@ -77,6 +73,8 @@ class ImportFilesDialog : DialogFragment() {
         if (errorCount > 0) {
             val errorMessage = if (isMemoryError) {
                 getString(R.string.uploadOutOfMemoryError)
+            } else if (isStorageError) {
+                getString(R.string.errorDeviceStorage)
             } else {
                 resources.getQuantityString(R.plurals.snackBarUploadError, errorCount, errorCount)
             }
@@ -96,10 +94,10 @@ class ImportFilesDialog : DialogFragment() {
             }.onFailure { exception ->
                 exception.printStackTrace()
 
-                if (exception is NotEnoughRamException) {
-                    isMemoryError = true
-                } else {
-                    Sentry.captureException(exception)
+                when (exception) {
+                    is NotEnoughRamException -> isMemoryError = true
+                    is NotEnoughStorageException -> isStorageError = true
+                    else -> Sentry.captureException(exception)
                 }
             }
         }
@@ -121,7 +119,10 @@ class ImportFilesDialog : DialogFragment() {
         }
 
         requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (isLowMemory()) throw NotEnoughRamException()
+            if (requireContext().isLowMemory()) throw NotEnoughRamException()
+
+            val fileSize = requireContext().getFileSize(cursor, uri)
+            if (isLowStorage(fileSize)) throw NotEnoughStorageException()
 
             if (cursor.moveToFirst()) {
                 processCursorData(cursor, uri)
@@ -153,11 +154,6 @@ class ImportFilesDialog : DialogFragment() {
         currentImportFile = null
     }
 
-    private fun isLowMemory(): Boolean {
-        val memoryInfo = requireContext().getAvailableMemory()
-        return memoryInfo.lowMemory || memoryInfo.availMem < UploadTask.chunkSize
-    }
-
     private suspend fun getOutputFile(uri: Uri, fileModifiedAt: Date): IOFile {
 
         fun captureCannotProcessCopyData() {
@@ -180,6 +176,7 @@ class ImportFilesDialog : DialogFragment() {
     }
 
     private class NotEnoughRamException : Exception("Low device memory.")
+    private class NotEnoughStorageException : Exception("Low device storage.")
 
     private companion object {
         val TAG: String = ImportFilesDialog::class.java.simpleName

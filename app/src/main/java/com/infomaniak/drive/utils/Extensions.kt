@@ -36,6 +36,7 @@ import android.text.format.Formatter
 import android.transition.AutoTransition
 import android.transition.TransitionManager
 import android.transition.TransitionSet
+import android.util.Log
 import android.util.Patterns
 import android.view.ViewGroup
 import android.view.animation.Animation
@@ -68,6 +69,7 @@ import com.infomaniak.drive.BuildConfig.SUPPORT_URL
 import com.infomaniak.drive.MatomoDrive.trackShareRightsEvent
 import com.infomaniak.drive.R
 import com.infomaniak.drive.data.api.ApiRoutes
+import com.infomaniak.drive.data.api.UploadTask
 import com.infomaniak.drive.data.cache.DriveInfosController
 import com.infomaniak.drive.data.models.DriveUser
 import com.infomaniak.drive.data.models.File
@@ -106,6 +108,17 @@ typealias FileId = Int
 typealias IOFile = java.io.File
 typealias IsComplete = Boolean
 typealias Position = Int
+
+fun Context.isLowMemory(): Boolean {
+    val memoryInfo = getAvailableMemory()
+    return memoryInfo.lowMemory || memoryInfo.availMem < UploadTask.chunkSize
+}
+
+fun isLowStorage(fileSize: Long): Boolean {
+    val memoryLeftAfterDownload = (getAvailableStorageInBytes() - fileSize) / BYTES_TO_MB
+    val hasSpaceLeftAfterDownload = memoryLeftAfterDownload > MIN_SPACE_LEFT_AFTER_DOWNLOAD_MB
+    return !hasSpaceLeftAfterDownload
+}
 
 fun getAvailableStorageInBytes(): Long = with(StatFs(Environment.getDataDirectory().path)) {
     return@with availableBlocksLong * blockSizeLong
@@ -516,3 +529,6 @@ fun Fragment.setupRootPendingFilesIndicator(countLiveData: LiveData<Int>, pendin
     pendingFilesView.setUploadFileInProgress(this, OTHER_ROOT_ID)
     countLiveData.observe(viewLifecycleOwner, pendingFilesView::updateUploadFileInProgress)
 }
+
+private const val MIN_SPACE_LEFT_AFTER_DOWNLOAD_MB = 500
+private const val BYTES_TO_MB = 1_000_000
