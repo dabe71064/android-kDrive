@@ -78,6 +78,9 @@ class SettingsFragment : Fragment() {
 
         setupMyKSuiteLayout()
 
+        fileSync.setOnClickListener {
+            safeNavigate(R.id.syncFilesBottomSheetDialog)
+        }
         syncPicture.setOnClickListener {
             safelyNavigate(R.id.syncSettingsActivity)
         }
