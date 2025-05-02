@@ -79,7 +79,7 @@ class SettingsFragment : Fragment() {
         setupMyKSuiteLayout()
 
         fileSync.setOnClickListener {
-            safeNavigate(R.id.syncFilesBottomSheetDialog)
+            safelyNavigate(R.id.syncFilesBottomSheetDialog)
         }
         syncPicture.setOnClickListener {
             safelyNavigate(R.id.syncSettingsActivity)
