@@ -35,6 +35,7 @@ import com.infomaniak.lib.core.models.ApiResponse
 import com.infomaniak.lib.core.networking.HttpClient
 import com.infomaniak.lib.core.utils.removeAccents
 import io.realm.*
+import io.realm.kotlin.executeTransactionAwait
 import io.realm.kotlin.oneOf
 import io.realm.kotlin.toFlow
 import io.sentry.Sentry
@@ -688,7 +689,7 @@ object FileController {
             .findAll()
     }
 
-    fun saveRemoteFiles(
+    suspend fun saveRemoteFiles(
         realm: Realm,
         localFolderProxy: File?,
         remoteFolder: File?,
@@ -701,13 +702,17 @@ object FileController {
         // Save remote folder if it doesn't exist locally
         var newLocalFolderProxy: File? = null
         if (localFolderProxy == null && remoteFolder != null) {
-            realm.executeTransaction { newLocalFolderProxy = it.copyToRealm(remoteFolder) }
+            realm.executeTransactionAwait { newLocalFolderProxy = it.copyToRealm(remoteFolder) }
         }
-        realm.executeTransaction {
+        realm.executeTransactionAwait { mutableRealm ->
+            val folderProxy = when (localFolderProxy?.isFrozen) {
+                true -> getFileProxyById(localFolderProxy.id, customRealm = mutableRealm)
+                else -> localFolderProxy
+            }
             // Restore same children data
-            keepSubFolderChildren(realm, localFolderProxy?.children, remoteFiles)
+            keepSubFolderChildren(mutableRealm, folderProxy?.children, remoteFiles)
             // Save to realm
-            (localFolderProxy ?: newLocalFolderProxy)?.let { folderProxy ->
+            (folderProxy ?: newLocalFolderProxy)?.let { folderProxy ->
                 // Remove old children
                 if (isFirstPage) folderProxy.children.clear()
                 // Add children
