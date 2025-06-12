@@ -146,7 +146,6 @@ object FolderFilesProvider {
     }
 
     fun getCloudStorageFiles(
-        realm: Realm,
         folderId: Int,
         userDrive: UserDrive,
         sortType: File.SortType,
@@ -154,7 +153,7 @@ object FolderFilesProvider {
         transaction: (files: ArrayList<File>) -> Unit,
         okHttpClient: OkHttpClient? = null,
     ) {
-        val folderProxy = FileController.getFileById(realm, folderId)
+        val realm = FileController.getRealmInstance(userDrive)
         val folderFilesProviderArgs = FolderFilesProviderArgs(
             folderId = folderId,
             isFirstPage = isFirstPage,
@@ -164,23 +163,39 @@ object FolderFilesProvider {
             userDrive = userDrive,
         )
         val currentOkHttpClient = okHttpClient ?: runBlocking { AccountUtils.getHttpClient(userDrive.userId) }
+
+
+        getCloudStorageFilesRec(
+            realm = realm,
+            folderFilesProviderArgs = folderFilesProviderArgs,
+            transaction = transaction,
+            okHttpClient = currentOkHttpClient,
+        )
+
+    }
+
+    private tailrec fun getCloudStorageFilesRec(
+        realm: Realm,
+        folderFilesProviderArgs: FolderFilesProviderArgs,
+        transaction: (files: ArrayList<File>) -> Unit,
+        okHttpClient: OkHttpClient,
+    ) {
+        val folderProxy = FileController.getFileById(realm, folderFilesProviderArgs.folderId)
+
         val folderFilesProviderResult = loadCloudStorageFromRemote(
             realm = realm,
             folderProxy = folderProxy,
             folderFilesProviderArgs = folderFilesProviderArgs,
-            okHttpClient = currentOkHttpClient,
+            okHttpClient = okHttpClient,
         )
 
         transaction(folderFilesProviderResult?.folderFiles ?: arrayListOf())
 
-        if (folderFilesProviderResult?.isComplete == false) getCloudStorageFiles(
+        if (folderFilesProviderResult?.isComplete == false) getCloudStorageFilesRec(
             realm = realm,
-            folderId = folderId,
-            userDrive = userDrive,
-            sortType = sortType,
-            isFirstPage = false,
+            folderFilesProviderArgs = folderFilesProviderArgs,
             transaction = transaction,
-            okHttpClient = currentOkHttpClient,
+            okHttpClient = okHttpClient,
         )
     }
 
