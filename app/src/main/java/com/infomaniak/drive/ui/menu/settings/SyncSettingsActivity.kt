@@ -32,6 +32,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.DateValidatorPointBackward
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.infomaniak.core.cancellable
 import com.infomaniak.core.utils.FORMAT_DATE_CLEAR_MONTH
 import com.infomaniak.core.utils.format
 import com.infomaniak.core.utils.startOfTheDay
@@ -414,7 +415,7 @@ class SyncSettingsActivity : BaseActivity() {
                 }
 
                 trackPhotoSyncEvent(if (activateSyncItem.isChecked) "enabled" else "disabled")
-            }.onFailure { exception ->
+            }.cancellable().onFailure { exception ->
                 showSnackbar(R.string.anErrorHasOccurred)
                 Sentry.withScope { scope ->
                     scope.setTag("syncIntervalType", syncSettingsViewModel.syncIntervalType.value?.title.toString())
@@ -424,8 +425,10 @@ class SyncSettingsActivity : BaseActivity() {
                 }
             }
 
-            saveButton.hideProgressCatching(R.string.buttonSave)
-            if (result.isSuccess) finish()
+            lifecycleScope.launch(Dispatchers.Main) {
+                saveButton.hideProgressCatching(R.string.buttonSave)
+                if (result.isSuccess) finish()
+            }
         }
     }
 
