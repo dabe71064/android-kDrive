@@ -58,7 +58,6 @@ import com.infomaniak.drive.utils.DrivePermissions
 import com.infomaniak.drive.utils.SyncUtils.activateAutoSync
 import com.infomaniak.drive.utils.SyncUtils.disableAutoSync
 import com.infomaniak.drive.utils.Utils
-import com.infomaniak.lib.core.utils.SentryLog
 import com.infomaniak.lib.core.utils.SnackbarUtils.showSnackbar
 import com.infomaniak.lib.core.utils.hideProgressCatching
 import com.infomaniak.lib.core.utils.initProgress
@@ -417,11 +416,11 @@ class SyncSettingsActivity : BaseActivity() {
                 trackPhotoSyncEvent(if (activateSyncItem.isChecked) "enabled" else "disabled")
             }.cancellable().onFailure { exception ->
                 showSnackbar(R.string.anErrorHasOccurred)
-                Sentry.withScope { scope ->
+                Sentry.captureMessage("An error has occurred when save settings") { scope ->
                     scope.setTag("syncIntervalType", syncSettingsViewModel.syncIntervalType.value?.title.toString())
                     scope.setTag("createMonthFolder", createDatedSubFolders.isChecked.toString())
                     scope.setTag("deletePhoto", deletePicturesAfterSync.isChecked.toString())
-                    SentryLog.e("SyncSettings", "An error has occurred when save settings", exception)
+                    Sentry.captureException(exception)
                 }
             }
 
